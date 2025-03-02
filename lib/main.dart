@@ -6,8 +6,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'services/auth_service.dart';
 import 'firebase_options.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -105,18 +108,6 @@ class InitializationWidget extends StatelessWidget {
 
 // Placeholder widgets for routes
 // You should create separate files for each of these pages
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: const Center(child: Text('Profile Page')),
-    );
-  }
-}
-
 class RestaurantListPage extends StatelessWidget {
   const RestaurantListPage({super.key});
 
