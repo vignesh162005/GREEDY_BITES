@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
+import 'pages/home_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'services/auth_service.dart';
+import 'firebase_options.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -30,17 +35,69 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      initialRoute: '/',
+      home: const InitializationWidget(),
       routes: {
-        '/': (context) => const LoginPage(),
-        '/home': (context) => const HomePage(),
+        '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
-        '/profile': (context) => const ProfilePage(),
-        '/restaurants': (context) => const RestaurantListPage(),
-        '/restaurant-details': (context) => const RestaurantDetailsPage(),
-        '/favorites': (context) => const FavoritesPage(),
-        '/search': (context) => const SearchPage(),
-        '/settings': (context) => const SettingsPage(),
+        '/home': (context) => const AuthGuard(child: HomePage()),
+        '/profile': (context) => const AuthGuard(child: ProfilePage()),
+        '/restaurants': (context) => const AuthGuard(child: RestaurantListPage()),
+        '/restaurant-details': (context) => const AuthGuard(child: RestaurantDetailsPage()),
+        '/favorites': (context) => const AuthGuard(child: FavoritesPage()),
+        '/search': (context) => const AuthGuard(child: SearchPage()),
+        '/settings': (context) => const AuthGuard(child: SettingsPage()),
+      },
+    );
+  }
+}
+
+class InitializationWidget extends StatelessWidget {
+  const InitializationWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Text(
+                'Error initializing Firebase: ${snapshot.error}',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.done) {
+          return StreamBuilder(
+            stream: AuthService.authStateChanges,
+            builder: (context, authSnapshot) {
+              if (authSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (authSnapshot.hasData) {
+                return const HomePage();
+              }
+
+              return const LoginPage();
+            },
+          );
+        }
+
+        return const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
       },
     );
   }
@@ -48,18 +105,6 @@ class MyApp extends StatelessWidget {
 
 // Placeholder widgets for routes
 // You should create separate files for each of these pages
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
-      body: const Center(child: Text('Home Page')),
-    );
-  }
-}
-
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 

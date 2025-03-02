@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "391985456820",
+    "project_id": "greedy-bites",
+    "storage_bucket": "greedy-bites.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:391985456820:android:9785ba8c788be7e67a99e1",
+        "android_client_info": {
+          "package_name": "com.company.greedybites"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYs71aFEByjVp1piZUqtlkh12V49_xY9g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
