@@ -6,7 +6,7 @@ import 'pages/signup_page.dart';
 import 'pages/home_page.dart';
 import 'widgets/auth_guard.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -51,18 +51,6 @@ class MyApp extends StatelessWidget {
 
 // Placeholder widgets for routes
 // You should create separate files for each of these pages
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: const Center(child: Text('Profile Page')),
-    );
-  }
-}
-
 class RestaurantListPage extends StatelessWidget {
   const RestaurantListPage({super.key});
 

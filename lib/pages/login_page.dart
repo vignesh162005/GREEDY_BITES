@@ -48,15 +48,15 @@ class _LoginPageState extends State<LoginPage> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
-        _errorMessage = null;
       });
 
       try {
         // Sign in with Firebase Auth
         await UserService.signInWithEmail(
           email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+          password: _passwordController.text,
         );
+
 
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/home');
