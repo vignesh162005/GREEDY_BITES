@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'widgets/initialization_widget.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/home_page.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'services/auth_service.dart';
-import 'firebase_options.dart';
+import 'widgets/auth_guard.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(const MyApp());
 }
 
@@ -17,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Restaurant Finder',
+      title: 'Greedy Bites',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -40,64 +44,6 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const AuthGuard(child: HomePage()),
-        '/profile': (context) => const AuthGuard(child: ProfilePage()),
-        '/restaurants': (context) => const AuthGuard(child: RestaurantListPage()),
-        '/restaurant-details': (context) => const AuthGuard(child: RestaurantDetailsPage()),
-        '/favorites': (context) => const AuthGuard(child: FavoritesPage()),
-        '/search': (context) => const AuthGuard(child: SearchPage()),
-        '/settings': (context) => const AuthGuard(child: SettingsPage()),
-      },
-    );
-  }
-}
-
-class InitializationWidget extends StatelessWidget {
-  const InitializationWidget({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Text(
-                'Error initializing Firebase: ${snapshot.error}',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        if (snapshot.connectionState == ConnectionState.done) {
-          return StreamBuilder(
-            stream: AuthService.authStateChanges,
-            builder: (context, authSnapshot) {
-              if (authSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              if (authSnapshot.hasData) {
-                return const HomePage();
-              }
-
-              return const LoginPage();
-            },
-          );
-        }
-
-        return const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
       },
     );
   }

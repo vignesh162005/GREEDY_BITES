@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_service.dart';
+import '../models/user_model.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,6 +18,32 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  Future<void> _handleGoogleSignIn() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final userCredential = await UserService.signInWithGoogle();
+      
+      if (!mounted) return;
+      
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      print('Google Sign-In Error: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _errorMessage = 'Failed to sign in with Google. Please try again.';
+        _isLoading = false;
+      });
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -24,21 +52,29 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        // Sign in with Firebase Auth
+        await UserService.signInWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/home');
         }
       } on FirebaseAuthException catch (e) {
-        setState(() {
-          _errorMessage = e.message ?? 'An error occurred during login';
-        });
+        print('Firebase Auth Error: ${e.message}');
+        if (mounted) {
+          setState(() {
+            _errorMessage = e.message ?? 'An error occurred during login';
+          });
+        }
       } catch (e) {
-        setState(() {
-          _errorMessage = 'An unexpected error occurred';
-        });
+        print('Unexpected Error: $e');
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'An unexpected error occurred';
+          });
+        }
       } finally {
         if (mounted) {
           setState(() {
@@ -169,6 +205,33 @@ class _LoginPageState extends State<LoginPage> {
                               'Login',
                               style: TextStyle(fontSize: 16),
                             ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'OR',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _handleGoogleSignIn,
+                      icon: const Icon(
+                        Icons.g_mobiledata,
+                        size: 24,
+                        color: Colors.red,
+                      ),
+                      label: const Text('Sign in with Google'),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
