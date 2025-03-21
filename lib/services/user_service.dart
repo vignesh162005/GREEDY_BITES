@@ -8,11 +8,16 @@ class UserService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn();
-  static const String _collection = 'users';
+  static final CollectionReference _usersCollection = 
+      _firestore.collection('users');
+
+  // Add rate limiting variables
+  static DateTime? _lastUpdateTime;
+  static const _minimumUpdateInterval = Duration(seconds: 2);
 
   static Future<void> initializeUserCollection() async {
     try {
-      final collectionExists = await FirebaseService.verifyCollection(_collection);
+      final collectionExists = await FirebaseService.verifyCollection('users');
       if (!collectionExists) {
         await FirebaseService.initialize();
       }
@@ -22,11 +27,11 @@ class UserService {
     }
   }
 
-  static Future<DocumentSnapshot> getUserData(String uid) async {
+  static Future<DocumentSnapshot> getUserData(String userId) async {
     try {
       await initializeUserCollection();
-      final doc = await _firestore.collection(_collection).doc(uid).get();
-      print('Retrieved user data for: $uid');
+      final doc = await _usersCollection.doc(userId).get();
+      print('Retrieved user data for: $userId');
       return doc;
     } catch (e) {
       print('Error getting user data: $e');
@@ -38,7 +43,7 @@ class UserService {
     try {
       await initializeUserCollection();
       final QuerySnapshot result = await _firestore
-          .collection(_collection)
+          .collection('users')
           .where('username', isEqualTo: username)
           .limit(1)
           .get();
@@ -52,16 +57,7 @@ class UserService {
   static Future<void> createUser(UserModel user) async {
     try {
       await initializeUserCollection();
-      final userData = user.toMap();
-      userData['metadata'] = {
-        'lastPasswordChange': FieldValue.serverTimestamp(),
-        'createdBy': 'app',
-        'accountType': 'email',
-        'role': 'user',
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-      
-      await _firestore.collection(_collection).doc(user.id).set(userData);
+      await _usersCollection.doc(user.id).set(user.toMap());
       print('User created successfully: ${user.email}');
     } catch (e) {
       print('Error creating user: $e');
@@ -69,30 +65,51 @@ class UserService {
     }
   }
 
-  static Future<void> updateUser(String uid, Map<String, dynamic> data) async {
+  static Future<void> updateUser(UserModel user) async {
     try {
+      // Check if enough time has passed since last update
+      if (_lastUpdateTime != null) {
+        final timeSinceLastUpdate = DateTime.now().difference(_lastUpdateTime!);
+        if (timeSinceLastUpdate < _minimumUpdateInterval) {
+          // Wait for the remaining time
+          await Future.delayed(_minimumUpdateInterval - timeSinceLastUpdate);
+        }
+      }
+
       await initializeUserCollection();
-      final updateData = Map<String, dynamic>.from(data);
-      updateData['metadata'] = {
-        'lastUpdated': FieldValue.serverTimestamp(),
-      };
-      await _firestore.collection(_collection).doc(uid).update(updateData);
-      print('User updated successfully: $uid');
+      await _usersCollection.doc(user.id).update(user.toMap());
+      
+      // Update the last update time
+      _lastUpdateTime = DateTime.now();
+      
+      print('User updated successfully: ${user.id}');
     } catch (e) {
       print('Error updating user: $e');
       rethrow;
     }
   }
 
-  static Future<void> deleteUser(String uid) async {
+  static Future<void> deleteUser(String userId) async {
     try {
       await initializeUserCollection();
-      await _firestore.collection(_collection).doc(uid).delete();
-      print('User deleted successfully: $uid');
+      await _usersCollection.doc(userId).delete();
+      print('User deleted successfully: $userId');
     } catch (e) {
       print('Error deleting user: $e');
       rethrow;
     }
+  }
+
+  static Future<bool> userExists(String userId) async {
+    final doc = await _usersCollection.doc(userId).get();
+    return doc.exists;
+  }
+
+  static Future<UserModel?> getUserModel(String userId) async {
+    final doc = await _usersCollection.doc(userId).get();
+    if (!doc.exists) return null;
+    
+    return UserModel.fromMap(doc.data() as Map<String, dynamic>);
   }
 
   static Future<UserCredential> signUpWithEmail({
@@ -118,6 +135,13 @@ class UserService {
         phoneNumber: phoneNumber,
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
+        isEmailVerified: userCredential.user!.emailVerified,
+        metadata: {
+          'createdBy': 'email',
+          'accountType': 'email',
+          'role': 'user',
+          'createdAt': DateTime.now().toIso8601String(),
+        },
       );
 
       await createUser(user);
@@ -150,14 +174,28 @@ class UserService {
           username: email.split('@')[0],
           createdAt: DateTime.now(),
           lastLoginAt: DateTime.now(),
+          isEmailVerified: userCredential.user!.emailVerified,
+          metadata: {
+            'createdBy': 'email',
+            'accountType': 'email',
+            'role': 'user',
+            'createdAt': DateTime.now().toIso8601String(),
+          },
         );
         
         await createUser(newUser);
       } else {
         // Update last login time
-        await updateUser(userCredential.user!.uid, {
-          'lastLoginAt': FieldValue.serverTimestamp(),
-        });
+        await updateUser(UserModel(
+          id: userCredential.user!.uid,
+          email: userCredential.user!.email!,
+          name: userCredential.user!.displayName ?? email.split('@')[0],
+          username: email.split('@')[0],
+          createdAt: (userDoc.data() as Map<String, dynamic>)['createdAt'].toDate(),
+          lastLoginAt: DateTime.now(),
+          isEmailVerified: userCredential.user!.emailVerified,
+          metadata: Map<String, dynamic>.from((userDoc.data() as Map<String, dynamic>)['metadata']),
+        ));
       }
 
       return userCredential;
@@ -223,7 +261,18 @@ class UserService {
             if (userCredential.user!.photoURL != null)
               'profileImageUrl': userCredential.user!.photoURL,
           };
-          await updateUser(userCredential.user!.uid, updates);
+          await updateUser(UserModel(
+            id: userCredential.user!.uid,
+            email: userCredential.user!.email!,
+            name: userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
+            username: userCredential.user!.email!.split('@')[0],
+            phoneNumber: userCredential.user!.phoneNumber,
+            profileImageUrl: userCredential.user!.photoURL,
+            createdAt: DateTime.now(),
+            lastLoginAt: DateTime.now(),
+            isEmailVerified: userCredential.user!.emailVerified,
+            metadata: Map<String, dynamic>.from(userDoc.data() as Map<String, dynamic>)['metadata'],
+          ));
         }
 
         return userCredential;

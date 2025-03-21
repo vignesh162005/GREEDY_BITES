@@ -10,6 +10,8 @@ import '../models/reservation.dart';
 import '../pages/restaurant_details_page.dart';
 import '../services/review_service.dart';
 import '../pages/search_page.dart';
+import '../pages/complete_profile_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -101,6 +103,20 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -184,7 +200,7 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long_outlined),
             activeIcon: Icon(Icons.receipt_long),
-            label: 'Orders',
+            label: 'History',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
@@ -719,6 +735,8 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Profile Image
+          Stack(
+            children: [
           CircleAvatar(
             radius: 60,
             backgroundImage: userData['profileImageUrl'] != null
@@ -730,6 +748,23 @@ class _HomePageState extends State<HomePage> {
                     style: const TextStyle(fontSize: 40),
                   )
                 : null,
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.white),
+                    onPressed: () => _navigateToCompleteProfile(),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           
@@ -751,7 +786,48 @@ class _HomePageState extends State<HomePage> {
               color: Colors.grey[600],
             ),
           ),
+          const SizedBox(height: 8),
+
+          // Phone Number
+          if (userData['phoneNumber'] != null) ...[
+            Text(
+              userData['phoneNumber'],
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Address
+          if (userData['address'] != null) ...[
+            Text(
+              userData['address'],
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 24),
+          ],
+
+          // Complete Profile Button (if profile is incomplete)
+          if (userData['phoneNumber'] == null || userData['address'] == null)
+            OutlinedButton.icon(
+              onPressed: () => _navigateToCompleteProfile(),
+              icon: const Icon(Icons.person_add),
+              label: const Text('Complete Your Profile'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 32),
 
           // Profile Stats
           Row(
@@ -819,6 +895,87 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  Future<void> _navigateToCompleteProfile() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in first')),
+        );
+        return;
+      }
+
+      setState(() => _isLoading = true);
+
+      // Get user data from Firestore
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userData = doc.data() ?? {};
+
+      // Helper function to safely convert timestamp
+      DateTime _parseTimestamp(dynamic value) {
+        if (value == null) return DateTime.now();
+        if (value is Timestamp) return value.toDate();
+        if (value is String) {
+          try {
+            return DateTime.parse(value);
+          } catch (e) {
+            return DateTime.now();
+          }
+        }
+        return DateTime.now();
+      }
+
+      // Create UserModel with proper type casting
+      final userModel = UserModel(
+        id: user.uid,
+        email: (userData['email'] as String?) ?? user.email ?? '',
+        name: (userData['name'] as String?) ?? user.displayName ?? '',
+        username: (userData['username'] as String?) ?? 
+                 ((userData['email'] as String?)?.split('@')[0]) ?? 
+                 (user.email?.split('@')[0]) ?? '',
+        phoneNumber: userData['phoneNumber'] as String?,
+        address: userData['address'] as String?,
+        profileImageUrl: userData['profileImageUrl'] as String?,
+        createdAt: _parseTimestamp(userData['createdAt']),
+        lastLoginAt: _parseTimestamp(userData['lastLoginAt']),
+        isEmailVerified: (userData['isEmailVerified'] as bool?) ?? user.emailVerified,
+        metadata: (userData['metadata'] as Map<String, dynamic>?) ?? {},
+      );
+
+      if (!mounted) return;
+
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CompleteProfilePage(
+            initialData: userModel,
+          ),
+        ),
+      );
+
+      if (result == true && mounted) {
+        setState(() {
+          _isLoading = true;
+        });
+        await _loadUserData();
+      }
+    } catch (e) {
+      print('Error navigating to profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Widget _buildStatItem(String label, String value) {
@@ -950,15 +1107,15 @@ class FeaturedRestaurantCard extends StatelessWidget {
                         final reviewCount = snapshot.hasData ? snapshot.data!.totalReviews : 0;
                         
                         return Row(
-                          children: [
-                            Icon(Icons.star, color: Colors.amber[600], size: 20),
-                            const SizedBox(width: 4),
+                      children: [
+                        Icon(Icons.star, color: Colors.amber[600], size: 20),
+                        const SizedBox(width: 4),
                             Text('$rating ${reviewCount > 0 ? '($reviewCount)' : ''}'),
-                            const SizedBox(width: 12),
-                            Icon(Icons.access_time, color: Colors.grey[600], size: 20),
-                            const SizedBox(width: 4),
-                            Text(restaurant.deliveryTime),
-                          ],
+                        const SizedBox(width: 12),
+                        Icon(Icons.access_time, color: Colors.grey[600], size: 20),
+                        const SizedBox(width: 4),
+                        Text(restaurant.deliveryTime),
+                      ],
                         );
                       },
                     ),
@@ -1038,15 +1195,15 @@ class RestaurantCard extends StatelessWidget {
                         final reviewCount = snapshot.hasData ? snapshot.data!.totalReviews : 0;
                         
                         return Row(
-                          children: [
-                            Icon(Icons.star, color: Colors.amber[600], size: 20),
-                            const SizedBox(width: 4),
+                      children: [
+                        Icon(Icons.star, color: Colors.amber[600], size: 20),
+                        const SizedBox(width: 4),
                             Text('$rating ${reviewCount > 0 ? '($reviewCount)' : ''}'),
-                            const SizedBox(width: 12),
-                            Icon(Icons.location_on, color: Colors.grey[600], size: 20),
-                            const SizedBox(width: 4),
-                            Text(restaurant.distance),
-                          ],
+                        const SizedBox(width: 12),
+                        Icon(Icons.location_on, color: Colors.grey[600], size: 20),
+                        const SizedBox(width: 4),
+                        Text(restaurant.distance),
+                      ],
                         );
                       },
                     ),
