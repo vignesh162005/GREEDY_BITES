@@ -56,6 +56,40 @@ class ReviewService {
     }
   }
 
+  // Get blogger's reviews
+  static Future<List<Review>> getBloggerReviews(String bloggerId) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: bloggerId)
+          .orderBy('date', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Review.fromMap({...doc.data(), 'id': doc.id}))
+          .toList();
+    } catch (e) {
+      if (e.toString().contains('indexes?create')) {
+        print('Index not ready for blogger reviews. Falling back to unordered query.');
+        // Fallback to unordered query
+        final snapshot = await _firestore
+            .collection(_collection)
+            .where('userId', isEqualTo: bloggerId)
+            .get();
+
+        final reviews = snapshot.docs
+            .map((doc) => Review.fromMap({...doc.data(), 'id': doc.id}))
+            .toList();
+        
+        // Sort in memory
+        reviews.sort((a, b) => b.date.compareTo(a.date));
+        return reviews;
+      }
+      print('Error getting blogger reviews: $e');
+      rethrow;
+    }
+  }
+
   // Create a new review
   static Future<String> createReview(Review review) async {
     try {
