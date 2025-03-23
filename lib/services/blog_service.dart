@@ -17,14 +17,33 @@ class BlogService {
         .get();
 
     return snapshot.docs
-        .map((doc) => Blogger.fromMap({'id': doc.id, ...doc.data()}))
+        .map((doc) {
+          final data = doc.data();
+          // Ensure arrays are never null
+          if (data['followers'] == null) data['followers'] = [];
+          if (data['following'] == null) data['following'] = [];
+          if (data['specialties'] == null) data['specialties'] = [];
+          if (data['stats'] == null) data['stats'] = {};
+          if (data['metadata'] == null) data['metadata'] = {};
+          
+          return Blogger.fromMap({'id': doc.id, ...data});
+        })
         .toList();
   }
 
   static Future<Blogger?> getBlogger(String id) async {
     final doc = await _bloggersCollection.doc(id).get();
     if (!doc.exists) return null;
-    return Blogger.fromMap({'id': doc.id, ...doc.data()!});
+    
+    final data = doc.data()!;
+    // Ensure arrays are never null
+    if (data['followers'] == null) data['followers'] = [];
+    if (data['following'] == null) data['following'] = [];
+    if (data['specialties'] == null) data['specialties'] = [];
+    if (data['stats'] == null) data['stats'] = {};
+    if (data['metadata'] == null) data['metadata'] = {};
+    
+    return Blogger.fromMap({'id': doc.id, ...data});
   }
 
   static Future<void> followBlogger(String bloggerId, String userId) async {
@@ -85,7 +104,13 @@ class BlogService {
     final userDoc = await _bloggersCollection.doc(userId).get();
     if (!userDoc.exists) return [];
 
-    final following = List<String>.from(userDoc.data()!['following'] as List);
+    final userData = userDoc.data()!;
+    // Ensure following is not null
+    if (userData['following'] == null) {
+      userData['following'] = [];
+    }
+    
+    final following = List<String>.from(userData['following'] as List);
     if (following.isEmpty) return [];
 
     final snapshot = await _postsCollection
@@ -95,7 +120,15 @@ class BlogService {
         .get();
 
     return snapshot.docs
-        .map((doc) => BlogPost.fromMap({'id': doc.id, ...doc.data()}))
+        .map((doc) {
+          final data = doc.data();
+          // Ensure arrays are never null
+          if (data['likes'] == null) data['likes'] = [];
+          if (data['comments'] == null) data['comments'] = [];
+          if (data['tags'] == null) data['tags'] = [];
+          
+          return BlogPost.fromMap({'id': doc.id, ...data});
+        })
         .toList();
   }
 
@@ -107,7 +140,15 @@ class BlogService {
           .get();
 
       return snapshot.docs
-          .map((doc) => BlogPost.fromMap({'id': doc.id, ...doc.data()}))
+          .map((doc) {
+            final data = doc.data();
+            // Ensure arrays are never null
+            if (data['likes'] == null) data['likes'] = [];
+            if (data['comments'] == null) data['comments'] = [];
+            if (data['tags'] == null) data['tags'] = [];
+            
+            return BlogPost.fromMap({'id': doc.id, ...data});
+          })
           .toList();
     } catch (e) {
       if (e.toString().contains('indexes?create')) {
@@ -118,7 +159,15 @@ class BlogService {
             .get();
 
         final posts = snapshot.docs
-            .map((doc) => BlogPost.fromMap({'id': doc.id, ...doc.data()}))
+            .map((doc) {
+              final data = doc.data();
+              // Ensure arrays are never null
+              if (data['likes'] == null) data['likes'] = [];
+              if (data['comments'] == null) data['comments'] = [];
+              if (data['tags'] == null) data['tags'] = [];
+              
+              return BlogPost.fromMap({'id': doc.id, ...data});
+            })
             .toList();
         
         // Sort in memory
@@ -153,7 +202,14 @@ class BlogService {
         .get();
 
     return snapshot.docs
-        .map((doc) => Reel.fromMap({'id': doc.id, ...doc.data()}))
+        .map((doc) {
+          final data = doc.data();
+          // Ensure 'likes' and 'tags' are properly handled even if null
+          if (data['likes'] == null) data['likes'] = [];
+          if (data['tags'] == null) data['tags'] = [];
+          
+          return Reel.fromMap({'id': doc.id, ...data});
+        })
         .toList();
   }
 
@@ -165,7 +221,14 @@ class BlogService {
           .get();
 
       return snapshot.docs
-          .map((doc) => Reel.fromMap({'id': doc.id, ...doc.data()}))
+          .map((doc) {
+            final data = doc.data();
+            // Ensure 'likes' and 'tags' are properly handled even if null
+            if (data['likes'] == null) data['likes'] = [];
+            if (data['tags'] == null) data['tags'] = [];
+            
+            return Reel.fromMap({'id': doc.id, ...data});
+          })
           .toList();
     } catch (e) {
       if (e.toString().contains('indexes?create')) {
@@ -176,7 +239,14 @@ class BlogService {
             .get();
 
         final reels = snapshot.docs
-            .map((doc) => Reel.fromMap({'id': doc.id, ...doc.data()}))
+            .map((doc) {
+              final data = doc.data();
+              // Ensure 'likes' and 'tags' are properly handled even if null
+              if (data['likes'] == null) data['likes'] = [];
+              if (data['tags'] == null) data['tags'] = [];
+              
+              return Reel.fromMap({'id': doc.id, ...data});
+            })
             .toList();
         
         // Sort in memory
