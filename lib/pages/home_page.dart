@@ -13,6 +13,7 @@ import '../pages/search_page.dart';
 import '../pages/complete_profile_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/blog_page.dart';
+import 'user/faq_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -926,6 +927,18 @@ class _HomePageState extends State<HomePage> {
             title: 'Help & Support',
             onTap: () {
               // TODO: Implement help & support
+            },
+          ),
+          _buildProfileOption(
+            icon: Icons.question_answer_outlined,
+            title: 'FAQs',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FAQPage(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 24),
