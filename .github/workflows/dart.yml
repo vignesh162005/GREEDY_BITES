@@ -46,7 +46,17 @@ jobs:
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Get signing report for release
+        run: |
+          cd android
+          ./gradlew signingReport > signing_report.txt
+          cd ..
           
+      - name: Upload signing report
+        uses: actions/upload-artifact@v4
+        with:
+          name: signing-report
+          path: android/signing_report.txt
       - name: Build debug APK
         run: flutter build apk --debug
         
