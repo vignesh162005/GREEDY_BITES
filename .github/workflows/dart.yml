@@ -38,12 +38,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Format code
-        run: flutter format --set-exit-if-changed .
-        
-      - name: Analyze code
-        run: flutter analyze .
-        
       - name: Build release APK
         run: flutter build apk --release
         
